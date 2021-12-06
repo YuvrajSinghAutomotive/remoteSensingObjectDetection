@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     """ Dataset """
     path = "oxford-iiit-pet/"
-    (train_x,train_y),(valid_x,valid_y),(test_x,test_y) = load_data(path)
+    (train_x,train_y),(valid_x,valid_y),(test_x,test_y) = load_data(path)            
     print(f"Dataset: Train: {len(train_x)}, Test: {len(test_x)}, Validation: {len(valid_x)}")
 
     """Model"""

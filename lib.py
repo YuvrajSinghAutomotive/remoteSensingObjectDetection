@@ -267,6 +267,18 @@ def vectorStackToImage(dataStack,colNames):
         dataImages[col] = imgList
     return dataImages
 
+def stackToImage2(dataStack,colNames):
+    dataImages = pd.DataFrame(np.zeros(int(len(dataStack)/(1024*1024))),columns=['zeroCol'])
+    for col in colNames:
+        imgList = []
+        imgStack = dataStack[col]
+        for i in range( int(len(imgStack)/(1024*1024)) ):
+            imgVector = np.array( imgStack.iloc[i*(1024*1024):(i+1)*(1024*1024)] )
+            imgList.append( imgVector.transpose().reshape((1024,1024)) )
+        dataImages[col] = imgList
+    dataImages = dataImages.drop(columns=['zeroCol'])
+    return dataImages
+
 def featuresCompute(data, numPCA=3, numICA=3, 
                     indicesList = ['ndvi','ndwi','bai','bndvi','cvi','gndvi','yndvi','osavi']):
     predictors = data[data.columns[0:-1]]
