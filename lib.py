@@ -366,6 +366,72 @@ def preProcessImgs(imgFolder,annotationFolder):
     Y = np.array([ Y.iloc[imgIdx] for imgIdx in range(len(Y)) ])
     return X,Y,cols
 
+def preProcessImgs2(imgFolder,annotationFolder):
+    # Use for U-Net
+    colNames = ['coastal','blue','green','yellow','red','red edge','near IR1', 'near IR2','AGL','CLS']
+    rawData = dataExtract(foldername=imgFolder)
+    numImages = len(rawData)
+    '''
+    Compute Features
+    '''
+    data = dataStack(rawData)
+    ## Compute features
+    data = pd.DataFrame( np.array(data) , columns=colNames )
+    # data = featuresCompute(data, numPCA=3, numICA=3 )
+    print(f'Feature Names:\n{data.columns}')
+
+    '''
+    Remove Irrelevant Classes
+    '''
+    groundTruthCLS = np.array(data['CLS'])
+    groundTruthCLS[np.where(groundTruthCLS==9)[0]] = 2
+    groundTruthCLS[np.where(groundTruthCLS==17)[0]] = 2
+    groundTruthCLS[np.where(groundTruthCLS==65)[0]] = 2
+    groundTruthCLS[np.where(groundTruthCLS==2)[0]] = 0
+
+    GroundTruth = vectorStackToImage(pd.DataFrame(groundTruthCLS,columns=['CLS']),colNames=['CLS'])
+    del rawData      ## to free up space
+    FeatureImgs = stackToImage2(data,colNames = data.columns)
+    del data
+
+    saveImg = GroundTruth['CLS'].copy()
+    for i,img in enumerate(saveImg):
+        img[np.where(img==5)] = 3
+        saveImg.iloc[i] = img
+
+    for i,img in enumerate(saveImg):
+        matplotlib.image.imsave("{}/Img_{}.jpg".format(annotationFolder,i),img,cmap='gray')
+
+    treeTopImg = GroundTruth['CLS'].copy()
+    tophatList = []
+    for i,img in enumerate(treeTopImg):
+        img[np.where(img==5)] = 3
+        imgAGL = FeatureImgs.iloc[i]['AGL']
+        
+        tallTrees = 255*(imgAGL>5).astype(np.uint8) * (img==3).astype(np.uint8)
+        _, mask = cv2.threshold(tallTrees, 220, 255, cv2.THRESH_BINARY)
+        kernal = np.ones((9,9),np.uint8)
+        tophat = cv2.morphologyEx(mask,cv2.MORPH_TOPHAT,kernal)
+        tophatList.append(tophat)
+        plt.figure(dpi=200)
+        plt.imshow(mask,cmap='gray',alpha=0.2)
+        plt.imshow(tophat,cmap='Greens',alpha=0.7)
+        plt.savefig('{}/ref/refImg_{}.jpg'.format(annotationFolder,i))
+        plt.close()
+        
+        matplotlib.image.imsave("{}/trees/tophatImg_{}.jpg".format(annotationFolder,i),tophat,cmap='gray')
+
+    FeatureImgs['tophat'] = [ np.array(tophatImg) for tophatImg in tophatList ]
+    Y = GroundTruth['CLS']
+    X = FeatureImgs.drop(columns=['CLS','tophat'])
+    # print(X)
+    del FeatureImgs
+
+    cols = X.columns
+    X = np.array([ np.array([X.iloc[imgIdx][col] for col in X.columns]).transpose(1,2,0) for imgIdx in range(len(X)) ])
+    Y = np.array([ Y.iloc[imgIdx] for imgIdx in range(len(Y)) ])
+    return X,Y,cols
+
 '''
 Performance Metrics
 '''
